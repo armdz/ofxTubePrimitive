@@ -7,6 +7,8 @@
 
 //------------------------------------------------------------------------------
 ofxTubePrimitive::ofxTubePrimitive() {
+    globalRadius = -1;
+    taper = false;
     init();
 }
 
@@ -32,7 +34,7 @@ ofxTubePrimitive::~ofxTubePrimitive() {
 //------------------------------------------------------------------------------
 void ofxTubePrimitive::setup(ofPolyline & poly, float radius) {
     tubePoly = poly;
-
+    
     tubeRadius.clear();
     tubeRadius.resize(tubePoly.size(), radius);
 }
@@ -54,9 +56,16 @@ void ofxTubePrimitive::setResolution(int resolution) {
     tubeResolution = resolution;
 }
 
+void ofxTubePrimitive::setup(int  _resolution,float _global_radius)
+{
+    globalRadius = _global_radius;
+    setResolution(_resolution);
+}
+
+
 //------------------------------------------------------------------------------
 void ofxTubePrimitive::update() {
-
+    
     if(mesh.get() == NULL) {
         *mesh = ofMesh();
     } else {
@@ -65,11 +74,24 @@ void ofxTubePrimitive::update() {
     
     mesh->setMode(OF_PRIMITIVE_TRIANGLE_STRIP);
     
+    
+    
     for(int i=0; i<tubePoly.size(); i++) {
         const ofVec3f & p0 = tubePoly.getVertices()[i];
         const ofVec3f & n0 = tubePoly.getNormalAtIndex(i);
         const ofVec3f & t0 = tubePoly.getTangentAtIndex(i);
         float r0 = tubeRadius[i];
+
+        if(globalRadius != -1)
+        {
+            r0 = globalRadius;
+            if(taper){
+                float   delta = (float)i/(float)tubePoly.size();
+                float   deltaRadius = sin(delta*PI)*globalRadius;
+                r0 = deltaRadius;
+            }
+                
+        }
         
         ofVec3f v0;
         for(int j=0; j<tubeResolution; j++) {
@@ -81,11 +103,13 @@ void ofxTubePrimitive::update() {
             
             v0 *= r0;
             v0 += p0;
-            
+
+               
+            mesh->addColor(ofFloatColor(1.0,1.0,1.0));
             mesh->addVertex(v0);
         }
     }
-
+    
     //--------------------------------------------------------------------------
     vector<ofVec3f> & verts = mesh->getVertices();
     int numOfVerts = verts.size();
@@ -95,8 +119,8 @@ void ofxTubePrimitive::update() {
     int k;
     
     int numOfTubeSections = tubePoly.size();
-    for(int i=0; i<numOfTubeSections; i++) {
-
+    for(int i=0; i<numOfTubeSections-1; i++) {
+        
         bLeftToRight = (i % 2 == 0);
         k = 0;
         
@@ -116,7 +140,7 @@ void ofxTubePrimitive::update() {
                     k += tubeResolution;
                 }
             }
-
+            
             if(i0 > numOfVerts - 1) {
                 i0 -= numOfVerts;
             }
@@ -126,6 +150,14 @@ void ofxTubePrimitive::update() {
             
             mesh->addIndex(i0);
             mesh->addIndex(i1);
+            
+            if(bLeftToRight){
+                mesh->addTexCoord(ofVec2f(0.0,0.0));
+                mesh->addTexCoord(ofVec2f(1.0,0.0));
+            }else{
+                mesh->addTexCoord(ofVec2f(1.0,1.0));
+                mesh->addTexCoord(ofVec2f(0.0,1.0));
+            }
             
             bRingEnd = (j == tubeResolution);
             if(bRingEnd == true) {
@@ -159,7 +191,7 @@ void ofxTubePrimitive::drawTubeTangents(float tangentLength) {
 }
 
 void ofxTubePrimitive::drawTubeRings() {
-
+    
     for(int i=0; i<tubePoly.size(); i++) {
         ofNoFill();
         ofBeginShape();
@@ -176,4 +208,8 @@ void ofxTubePrimitive::drawTubeRings() {
     }
 }
 
+void    ofxTubePrimitive::setTaper(bool   _val)
+{
+    taper = _val;
+}
 
